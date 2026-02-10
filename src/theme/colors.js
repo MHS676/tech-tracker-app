@@ -1,0 +1,33 @@
+export const colors = {
+  primary50: '#eef2ff',
+  primary100: '#e0e7ff',
+  primary200: '#c7d2fe',
+  primary300: '#a5b4fc',
+  primary400: '#818cf8',
+  primary500: '#6366f1',
+  primary600: '#4f46e5',
+  primary700: '#4338ca',
+  primary800: '#3730a3',
+  primary900: '#312e81',
+
+  dark50: '#f8fafc',
+  dark100: '#f1f5f9',
+  dark200: '#e2e8f0',
+  dark300: '#cbd5e1',
+  dark400: '#94a3b8',
+  dark500: '#64748b',
+  dark600: '#475569',
+  dark700: '#334155',
+  dark800: '#1e293b',
+  dark900: '#0f172a',
+  dark950: '#020617',
+
+  success: '#22c55e',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  info: '#3b82f6',
+
+  white: '#ffffff',
+  black: '#000000',
+  transparent: 'transparent',
+};
