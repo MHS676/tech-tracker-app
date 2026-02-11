@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+// For Android Emulator use 10.0.2.2, for iOS use localhost, for device use your IP
+const API_BASE_URL = 'http://10.0.2.2:3000/api';
 
 class ApiService {
   constructor() {
