@@ -1,6 +1,6 @@
 // Use your computer's local IP for physical devices
 // Change this to 10.0.2.2 for Android Emulator, localhost for iOS Simulator
-const API_BASE_URL = 'http://192.168.1.69:3000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.35:3000/api';
 
 class ApiService {
   constructor() {

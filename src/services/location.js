@@ -4,7 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 
 // Use your computer's local IP for physical devices
 // Change this to 10.0.2.2 for Android Emulator, localhost for iOS Simulator
-const SOCKET_URL = 'http://192.168.1.69:3000';
+const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://192.168.0.35:3000';
 const LOCATION_TASK_NAME = 'background-location-task';
 
 class LocationService {
