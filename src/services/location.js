@@ -124,52 +124,85 @@ class LocationService {
         throw new Error('Location services are disabled. Please enable GPS/Location in your device settings.');
       }
 
-      console.log('Attempting to get high accuracy location...');
-      if (progressCallback) progressCallback('Acquiring GPS signal...');
+      console.log('Attempting to get location...');
+      if (progressCallback) progressCallback('Getting your location...');
       
-      // First try to get last known location for instant feedback
+      // Strategy 1: Try last known location first (fastest)
       try {
         const lastLocation = await Location.getLastKnownPositionAsync({
-          maxAge: 300000, // Accept location up to 5 minutes old for initial display
+          maxAge: 600000, // Accept up to 10 minutes old
         });
         
         if (lastLocation) {
-          console.log('📍 Using last known location (will update with fresh):', lastLocation.coords.latitude, lastLocation.coords.longitude);
-          // Return this but continue getting fresh location
-          setTimeout(async () => {
-            try {
-              const fresh = await this._getFreshHighAccuracyLocation(progressCallback);
-              console.log('📍 Got fresh location:', fresh);
-            } catch (e) {
-              console.log('Fresh location failed, using cached');
-            }
-          }, 0);
-          
+          console.log('✅ Using last known location:', lastLocation.coords.latitude, lastLocation.coords.longitude, 'accuracy:', lastLocation.coords.accuracy);
+          if (progressCallback) progressCallback('Location found!');
           return {
             lat: lastLocation.coords.latitude,
             lng: lastLocation.coords.longitude,
           };
         }
-      } catch (lastLocationError) {
-        console.log('No last known location available');
+      } catch (error) {
+        console.log('No last known location');
       }
       
-      // Get fresh high accuracy location
-      return await this._getFreshHighAccuracyLocation(progressCallback);
+      // Strategy 2: Try Balanced accuracy (good for indoor)
+      if (progressCallback) progressCallback('Requesting GPS location...');
+      try {
+        console.log('Trying Balanced accuracy...');
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 15000,
+        });
+        console.log('✅ Got Balanced location:', location.coords.latitude, location.coords.longitude, 'accuracy:', location.coords.accuracy);
+        if (progressCallback) progressCallback('Location acquired!');
+        return {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        };
+      } catch (error) {
+        console.log('Balanced accuracy failed:', error.message);
+      }
+      
+      // Strategy 3: Try Low accuracy (even more permissive)
+      if (progressCallback) progressCallback('Trying alternative method...');
+      try {
+        console.log('Trying Low accuracy...');
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Low,
+          timeout: 10000,
+        });
+        console.log('✅ Got Low accuracy location:', location.coords.latitude, location.coords.longitude, 'accuracy:', location.coords.accuracy);
+        if (progressCallback) progressCallback('Location acquired!');
+        return {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        };
+      } catch (error) {
+        console.log('Low accuracy failed:', error.message);
+      }
+      
+      // Strategy 4: Last resort - Lowest accuracy
+      if (progressCallback) progressCallback('Final attempt...');
+      try {
+        console.log('Trying Lowest accuracy (last resort)...');
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Lowest,
+          timeout: 10000,
+        });
+        console.log('✅ Got Lowest accuracy location:', location.coords.latitude, location.coords.longitude);
+        if (progressCallback) progressCallback('Location acquired!');
+        return {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        };
+      } catch (error) {
+        console.log('All location attempts failed:', error.message);
+        throw new Error('Cannot get GPS signal. Please:\n1. Go to Settings > Location\n2. Enable "Use GPS, Wi-Fi, and mobile networks"\n3. Restart your device\n4. Try outdoors with clear sky view');
+      }
       
     } catch (error) {
       console.error('getCurrentLocation error:', error);
-      
-      // Provide specific error messages
-      if (error.message.includes('Location services')) {
-        throw error;
-      } else if (error.message.includes('timeout')) {
-        throw new Error('GPS signal is weak. Please go outdoors or near a window and try again.');
-      } else if (error.message.includes('unavailable')) {
-        throw new Error('Location unavailable. Please:\n1. Enable Location in Settings\n2. Select "High Accuracy" mode\n3. Go outdoors or near a window\n4. Wait 30 seconds for GPS to warm up');
-      } else {
-        throw new Error('Unable to get location. Please enable High Accuracy mode in Location Settings and go outdoors.');
-      }
+      throw error; // Throw original error without modification
     }
   }
 
@@ -358,12 +391,24 @@ class LocationService {
 
       let location = null;
       if (enabled) {
-        // Request permissions first
+        // Check if location services are enabled FIRST
+        console.log('Checking location services...');
+        if (progressCallback) progressCallback('Checking location settings...');
+        
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          throw new Error('Location services are OFF. Please enable Location in your device Settings.');
+        }
+        
+        console.log('✅ Location services are enabled');
+        
+        // Request permissions
         console.log('Requesting location permissions...');
         if (progressCallback) progressCallback('Requesting permissions...');
         await this.requestPermissions();
         
-        if (progressCallback) progressCallback('Initializing GPS...');
+        console.log('✅ Permissions granted');
+        if (progressCallback) progressCallback('Getting your location...');
         console.log('GPS initialized, getting location...');
         
         // Get current location (this will use last known + fresh high accuracy)
