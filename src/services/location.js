@@ -2,8 +2,9 @@ import { io } from 'socket.io-client';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
-// For Android Emulator use 10.0.2.2, for iOS use localhost, for device use your IP
-const SOCKET_URL = 'http://10.0.2.2:3000';
+// Use your computer's local IP for physical devices
+// Change this to 10.0.2.2 for Android Emulator, localhost for iOS Simulator
+const SOCKET_URL = 'http://192.168.1.69:3000';
 const LOCATION_TASK_NAME = 'background-location-task';
 
 class LocationService {
