@@ -127,10 +127,15 @@ export default function HomeScreen() {
                 styles.gpsToggleTitle,
                 isGPSOn && styles.gpsToggleTitleActive
               ]}>
-                {gpsLoading ? 'Processing...' : isGPSOn ? 'GPS Sharing On' : 'Share My Location'}
+                {gpsLoading ? 'Getting Location...' : isGPSOn ? 'GPS Sharing On' : 'Share My Location'}
               </Text>
               <Text style={styles.gpsToggleSubtitle}>
-                {isGPSOn ? 'Your location is visible to admin' : 'Tap to share location with admin'}
+                {gpsLoading 
+                  ? 'Please wait, this may take a few seconds...' 
+                  : isGPSOn 
+                    ? 'Your location is visible to admin' 
+                    : 'Tap to share location with admin'
+                }
               </Text>
             </View>
           </View>

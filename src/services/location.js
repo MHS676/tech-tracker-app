@@ -118,22 +118,57 @@ class LocationService {
         throw new Error('Location permission not granted');
       }
 
-      console.log('Getting current location...');
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeoutMs: 15000,
-        maximumAge: 10000,
-      });
+      // Check if location services are enabled
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        throw new Error('Location services are disabled. Please enable GPS/Location in your device settings.');
+      }
+
+      console.log('Getting current location with high accuracy...');
       
-      console.log('📍 Location obtained:', location.coords.latitude, location.coords.longitude);
-      
-      return {
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-      };
+      // Try with high accuracy first, with longer timeout
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+          timeoutMs: 20000, // 20 seconds
+          maximumAge: 5000, // Use cached location if less than 5 seconds old
+        });
+        
+        console.log('📍 Location obtained (high accuracy):', location.coords.latitude, location.coords.longitude);
+        
+        return {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        };
+      } catch (highAccuracyError) {
+        // Fallback to lower accuracy if high accuracy fails
+        console.log('High accuracy failed, trying balanced accuracy...');
+        
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeoutMs: 15000,
+        });
+        
+        console.log('📍 Location obtained (balanced accuracy):', location.coords.latitude, location.coords.longitude);
+        
+        return {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        };
+      }
     } catch (error) {
       console.error('getCurrentLocation error:', error);
-      throw new Error('Unable to get location. Please check if location services are enabled.');
+      
+      // Provide specific error messages
+      if (error.message.includes('Location services')) {
+        throw error; // Re-throw our custom message
+      } else if (error.message.includes('timeout')) {
+        throw new Error('Location request timed out. Please make sure you have a clear view of the sky and try again.');
+      } else if (error.message.includes('unavailable')) {
+        throw new Error('Location is temporarily unavailable. Please enable High Accuracy mode in Location Settings and try again.');
+      } else {
+        throw new Error('Unable to get location. Please check:\n1. Location/GPS is enabled\n2. High Accuracy mode is selected\n3. You have a clear view of the sky');
+      }
     }
   }
 
@@ -250,10 +285,33 @@ class LocationService {
         console.log('Requesting location permissions...');
         await this.requestPermissions();
         
-        // Get current location
+        // Wait a moment for GPS to warm up
+        console.log('Warming up GPS...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Get current location with retries
         console.log('Getting current location...');
-        location = await this.getCurrentLocation();
-        console.log('✅ Location obtained:', location);
+        let retries = 3;
+        let lastError = null;
+        
+        for (let i = 0; i < retries; i++) {
+          try {
+            location = await this.getCurrentLocation();
+            console.log('✅ Location obtained:', location);
+            break; // Success, exit retry loop
+          } catch (error) {
+            lastError = error;
+            console.log(`Attempt ${i + 1}/${retries} failed:`, error.message);
+            if (i < retries - 1) {
+              console.log('Retrying in 2 seconds...');
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+        
+        if (!location) {
+          throw lastError || new Error('Failed to get location after multiple attempts');
+        }
       }
 
       // Emit toggle event to server
