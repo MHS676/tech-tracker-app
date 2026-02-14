@@ -31,6 +31,7 @@ export default function HomeScreen() {
     toggleGPS 
   } = useData();
   const [gpsLoading, setGpsLoading] = React.useState(false);
+  const [gpsStatus, setGpsStatus] = React.useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -53,9 +54,16 @@ export default function HomeScreen() {
   const handleGPSToggle = async () => {
     try {
       setGpsLoading(true);
-      await toggleGPS(!isGPSOn);
+      setGpsStatus('Starting GPS...');
+      
+      await toggleGPS(!isGPSOn, (progress) => {
+        setGpsStatus(progress);
+      });
+      
+      setGpsStatus('');
     } catch (error) {
       console.error('GPS toggle error:', error);
+      setGpsStatus('');
       Alert.alert(
         'Location Error',
         error.message || 'Unable to access location. Please enable location services in your device settings.',
@@ -131,7 +139,7 @@ export default function HomeScreen() {
               </Text>
               <Text style={styles.gpsToggleSubtitle}>
                 {gpsLoading 
-                  ? 'Please wait, this may take a few seconds...' 
+                  ? gpsStatus || 'Please wait, this may take a few seconds...'
                   : isGPSOn 
                     ? 'Your location is visible to admin' 
                     : 'Tap to share location with admin'

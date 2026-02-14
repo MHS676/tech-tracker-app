@@ -107,9 +107,9 @@ export function DataProvider({ children }) {
   };
 
   // Toggle GPS on/off without job context
-  const toggleGPS = async (enabled) => {
+  const toggleGPS = async (enabled, progressCallback) => {
     try {
-      const result = await locationService.toggleGPS(enabled);
+      const result = await locationService.toggleGPS(enabled, progressCallback);
       setIsGPSOn(enabled);
       setIsTracking(enabled);
       if (result.location) {
