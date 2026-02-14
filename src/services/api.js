@@ -26,27 +26,61 @@ class ApiService {
 
   // Auth
   async login(email, password) {
-    const response = await fetch(`${API_BASE_URL}/technician/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Login failed');
-    this.setToken(data.token);
-    return data;
+    try {
+      console.log('Login attempt:', { email, url: `${API_BASE_URL}/technician/login` });
+      
+      const response = await fetch(`${API_BASE_URL}/technician/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const data = await response.json();
+      console.log('Login response:', { success: data.success, hasToken: !!data.token });
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      if (!data.success || !data.token) {
+        throw new Error('Invalid server response');
+      }
+      
+      this.setToken(data.token);
+      return data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw new Error(error.message || 'Network request failed');
+    }
   }
 
   async register(name, email, password) {
-    const response = await fetch(`${API_BASE_URL}/technician/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Registration failed');
-    this.setToken(data.token);
-    return data;
+    try {
+      console.log('Register attempt:', { name, email, url: `${API_BASE_URL}/technician/register` });
+      
+      const response = await fetch(`${API_BASE_URL}/technician/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+      
+      const data = await response.json();
+      console.log('Register response:', { success: data.success, hasToken: !!data.token });
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+      
+      if (!data.success || !data.token) {
+        throw new Error('Invalid server response');
+      }
+      
+      this.setToken(data.token);
+      return data;
+    } catch (error) {
+      console.error('Register error:', error);
+      throw new Error(error.message || 'Network request failed');
+    }
   }
 
   logout() {

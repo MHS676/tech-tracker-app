@@ -2,7 +2,8 @@ import { io } from 'socket.io-client';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
-const SOCKET_URL = 'http://localhost:3000';
+// For Android Emulator use 10.0.2.2, for iOS use localhost, for device use your IP
+const SOCKET_URL = 'http://10.0.2.2:3000';
 const LOCATION_TASK_NAME = 'background-location-task';
 
 class LocationService {
@@ -16,44 +17,56 @@ class LocationService {
 
   // Connect to socket server
   connect(techId) {
-    if (this.socket?.connected) return;
+    try {
+      if (this.socket?.connected) {
+        console.log('Socket already connected');
+        return;
+      }
 
-    this.techId = techId;
-    this.socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-    });
+      console.log('Connecting to socket:', SOCKET_URL);
+      this.techId = techId;
+      
+      this.socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+      });
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket.id);
-      this.socket.emit('joinTech', techId);
-    });
+      this.socket.on('connect', () => {
+        console.log('✅ Socket connected:', this.socket.id);
+        this.socket.emit('joinTech', techId);
+      });
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-    });
+      this.socket.on('disconnect', () => {
+        console.log('❌ Socket disconnected');
+      });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
+      this.socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error.message);
+      });
 
-    this.socket.on('locationSaved', (data) => {
-      console.log('Location saved:', data);
-    });
+      this.socket.on('locationSaved', (data) => {
+        console.log('📍 Location saved:', data);
+      });
 
-    this.socket.on('trackingError', (error) => {
-      console.error('Tracking error:', error);
-    });
+      this.socket.on('trackingError', (error) => {
+        console.error('Tracking error:', error);
+      });
 
-    this.socket.on('routeStarted', (data) => {
-      console.log('Route started:', data);
-    });
+      this.socket.on('routeStarted', (data) => {
+        console.log('🚀 Route started:', data);
+      });
 
-    this.socket.on('routeCompleted', (data) => {
-      console.log('Route completed:', data);
-    });
+      this.socket.on('routeCompleted', (data) => {
+        console.log('✅ Route completed:', data);
+      });
 
-    return this.socket;
+      return this.socket;
+    } catch (error) {
+      console.error('Socket connection failed:', error);
+    }
   }
 
   disconnect() {

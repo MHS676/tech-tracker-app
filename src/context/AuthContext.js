@@ -36,29 +36,61 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const data = await api.login(email, password);
-    await SecureStore.setItemAsync('auth_token', data.token);
-    await SecureStore.setItemAsync('user', JSON.stringify(data.technician));
-    setUser(data.technician);
-    setIsAuthenticated(true);
-    
-    // Connect to socket for location tracking
-    locationService.connect(data.technician.id);
-    
-    return data;
+    try {
+      const data = await api.login(email, password);
+      
+      if (!data || !data.token || !data.technician) {
+        throw new Error('Invalid response from server');
+      }
+      
+      await SecureStore.setItemAsync('auth_token', data.token);
+      await SecureStore.setItemAsync('user', JSON.stringify(data.technician));
+      
+      api.setToken(data.token);
+      setUser(data.technician);
+      setIsAuthenticated(true);
+      
+      // Connect to socket for location tracking
+      try {
+        locationService.connect(data.technician.id);
+      } catch (locationError) {
+        console.log('Location service error:', locationError);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
   const register = async (name, email, password) => {
-    const data = await api.register(name, email, password);
-    await SecureStore.setItemAsync('auth_token', data.token);
-    await SecureStore.setItemAsync('user', JSON.stringify(data.technician));
-    setUser(data.technician);
-    setIsAuthenticated(true);
-    
-    // Connect to socket for location tracking
-    locationService.connect(data.technician.id);
-    
-    return data;
+    try {
+      const data = await api.register(name, email, password);
+      
+      if (!data || !data.token || !data.technician) {
+        throw new Error('Invalid response from server');
+      }
+      
+      await SecureStore.setItemAsync('auth_token', data.token);
+      await SecureStore.setItemAsync('user', JSON.stringify(data.technician));
+      
+      api.setToken(data.token);
+      setUser(data.technician);
+      setIsAuthenticated(true);
+      
+      // Connect to socket for location tracking
+      try {
+        locationService.connect(data.technician.id);
+      } catch (locationError) {
+        console.log('Location service error:', locationError);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
+    }
   };
 
   const logout = async () => {
