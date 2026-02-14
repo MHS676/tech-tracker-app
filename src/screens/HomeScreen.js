@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -55,6 +56,13 @@ export default function HomeScreen() {
       await toggleGPS(!isGPSOn);
     } catch (error) {
       console.error('GPS toggle error:', error);
+      Alert.alert(
+        'Location Error',
+        error.message || 'Unable to access location. Please enable location services in your device settings.',
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
     } finally {
       setGpsLoading(false);
     }

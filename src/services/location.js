@@ -80,28 +80,61 @@ class LocationService {
 
   // Request location permissions
   async requestPermissions() {
-    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    if (foregroundStatus !== 'granted') {
-      throw new Error('Foreground location permission not granted');
-    }
+    try {
+      // Check if location services are enabled first
+      const enabled = await Location.hasServicesEnabledAsync();
+      if (!enabled) {
+        throw new Error('Location services are disabled. Please enable location in your device settings.');
+      }
 
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-    if (backgroundStatus !== 'granted') {
-      console.warn('Background location permission not granted');
-    }
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+      if (foregroundStatus !== 'granted') {
+        throw new Error('Location permission denied. Please grant location access in app settings.');
+      }
 
-    return { foreground: foregroundStatus, background: backgroundStatus };
+      // Background permission is optional
+      try {
+        const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+        if (backgroundStatus !== 'granted') {
+          console.warn('Background location permission not granted - tracking will only work when app is open');
+        }
+        return { foreground: foregroundStatus, background: backgroundStatus };
+      } catch (bgError) {
+        console.warn('Background permission request failed:', bgError);
+        return { foreground: foregroundStatus, background: 'denied' };
+      }
+    } catch (error) {
+      console.error('Permission request error:', error);
+      throw error;
+    }
   }
 
   // Get current location
   async getCurrentLocation() {
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-    return {
-      lat: location.coords.latitude,
-      lng: location.coords.longitude,
-    };
+    try {
+      // Check permissions first
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        throw new Error('Location permission not granted');
+      }
+
+      console.log('Getting current location...');
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeoutMs: 15000,
+        maximumAge: 10000,
+      });
+      
+      console.log('📍 Location obtained:', location.coords.latitude, location.coords.longitude);
+      
+      return {
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+      };
+    } catch (error) {
+      console.error('getCurrentLocation error:', error);
+      throw new Error('Unable to get location. Please check if location services are enabled.');
+    }
   }
 
   // Start route for a job (marks start point)
@@ -206,43 +239,59 @@ class LocationService {
 
   // Toggle GPS on/off without job context
   async toggleGPS(enabled) {
-    if (!this.socket?.connected || !this.techId) {
-      throw new Error('Not connected to server');
+    try {
+      if (!this.socket?.connected || !this.techId) {
+        throw new Error('Not connected to server. Please check your internet connection.');
+      }
+
+      let location = null;
+      if (enabled) {
+        // Request permissions first
+        console.log('Requesting location permissions...');
+        await this.requestPermissions();
+        
+        // Get current location
+        console.log('Getting current location...');
+        location = await this.getCurrentLocation();
+        console.log('✅ Location obtained:', location);
+      }
+
+      // Emit toggle event to server
+      console.log('Emitting toggleGPS to server:', { enabled, location });
+      this.socket.emit('toggleGPS', {
+        techId: this.techId,
+        enabled,
+        lat: location?.lat,
+        lng: location?.lng,
+      });
+
+      if (enabled && location) {
+        // Start continuous tracking without job
+        console.log('Starting continuous location tracking...');
+        this.isTracking = true;
+        this.locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 10000, // Update every 10 seconds
+            distanceInterval: 20, // Or every 20 meters
+          },
+          (loc) => {
+            console.log('📍 Location update:', loc.coords.latitude, loc.coords.longitude);
+            this.sendLocation(loc.coords.latitude, loc.coords.longitude);
+          }
+        );
+        console.log('✅ Location tracking started');
+      } else {
+        // Stop tracking
+        console.log('Stopping location tracking...');
+        await this.stopTracking();
+      }
+
+      return { enabled, location };
+    } catch (error) {
+      console.error('toggleGPS error:', error);
+      throw error;
     }
-
-    let location = null;
-    if (enabled) {
-      await this.requestPermissions();
-      location = await this.getCurrentLocation();
-    }
-
-    // Emit toggle event to server
-    this.socket.emit('toggleGPS', {
-      techId: this.techId,
-      enabled,
-      lat: location?.lat,
-      lng: location?.lng,
-    });
-
-    if (enabled && location) {
-      // Start continuous tracking without job
-      this.isTracking = true;
-      this.locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 10000, // Update every 10 seconds
-          distanceInterval: 20, // Or every 20 meters
-        },
-        (loc) => {
-          this.sendLocation(loc.coords.latitude, loc.coords.longitude);
-        }
-      );
-    } else {
-      // Stop tracking
-      await this.stopTracking();
-    }
-
-    return { enabled, location };
   }
 
   // Check if tracking is active
