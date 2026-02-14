@@ -126,24 +126,41 @@ class LocationService {
 
       console.log('Getting current location with high accuracy...');
       
-      // Try with high accuracy first, with longer timeout
+      // Try to get last known location first (fast)
       try {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-          timeoutMs: 20000, // 20 seconds
-          maximumAge: 5000, // Use cached location if less than 5 seconds old
+        const lastLocation = await Location.getLastKnownPositionAsync({
+          maxAge: 60000, // Accept location up to 1 minute old
+          requiredAccuracy: 100, // Within 100 meters
         });
         
-        console.log('📍 Location obtained (high accuracy):', location.coords.latitude, location.coords.longitude);
+        if (lastLocation) {
+          console.log('📍 Using last known location:', lastLocation.coords.latitude, lastLocation.coords.longitude);
+          return {
+            lat: lastLocation.coords.latitude,
+            lng: lastLocation.coords.longitude,
+          };
+        }
+      } catch (lastLocationError) {
+        console.log('Last known location not available, getting fresh location...');
+      }
+      
+      // Try with low accuracy first (faster)
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Low,
+          timeoutMs: 10000, // 10 seconds
+        });
+        
+        console.log('📍 Location obtained (low accuracy):', location.coords.latitude, location.coords.longitude);
         
         return {
           lat: location.coords.latitude,
           lng: location.coords.longitude,
         };
-      } catch (highAccuracyError) {
-        // Fallback to lower accuracy if high accuracy fails
-        console.log('High accuracy failed, trying balanced accuracy...');
+      } catch (lowAccuracyError) {
+        console.log('Low accuracy failed, trying balanced...');
         
+        // Fallback to balanced
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
           timeoutMs: 15000,
@@ -163,11 +180,11 @@ class LocationService {
       if (error.message.includes('Location services')) {
         throw error; // Re-throw our custom message
       } else if (error.message.includes('timeout')) {
-        throw new Error('Location request timed out. Please make sure you have a clear view of the sky and try again.');
+        throw new Error('Location request timed out. Please make sure you are outdoors or near a window.');
       } else if (error.message.includes('unavailable')) {
-        throw new Error('Location is temporarily unavailable. Please enable High Accuracy mode in Location Settings and try again.');
+        throw new Error('Location unavailable. Please:\n1. Enable Location in Settings\n2. Select "High Accuracy" mode\n3. Go near a window or outdoors\n4. Restart your device if issue persists');
       } else {
-        throw new Error('Unable to get location. Please check:\n1. Location/GPS is enabled\n2. High Accuracy mode is selected\n3. You have a clear view of the sky');
+        throw new Error('Unable to get location. Please check:\n1. Location/GPS is enabled\n2. High Accuracy mode is selected\n3. You are outdoors or near a window');
       }
     }
   }
@@ -287,11 +304,11 @@ class LocationService {
         
         // Wait a moment for GPS to warm up
         console.log('Warming up GPS...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Get current location with retries
         console.log('Getting current location...');
-        let retries = 3;
+        let retries = 2; // Reduced from 3 to 2 for faster response
         let lastError = null;
         
         for (let i = 0; i < retries; i++) {
@@ -303,8 +320,8 @@ class LocationService {
             lastError = error;
             console.log(`Attempt ${i + 1}/${retries} failed:`, error.message);
             if (i < retries - 1) {
-              console.log('Retrying in 2 seconds...');
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              console.log('Retrying in 1 second...');
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
         }
