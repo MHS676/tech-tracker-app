@@ -3,10 +3,12 @@
     "preview": {
       "android": {
         "buildType": "apk",
+        "withoutCredentials": false,
         "env": {
           "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
           "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
-        }
+        },
+        "distribution": "internal"
       }
     },
     "production": {
@@ -18,5 +20,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "appVersionSource": "remote"
   }
 }
