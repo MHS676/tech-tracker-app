@@ -2,12 +2,20 @@
   "build": {
     "preview": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
+          "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
+        }
       }
     },
     "production": {
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
+          "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
+        }
       }
     }
   }
