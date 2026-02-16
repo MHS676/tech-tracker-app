@@ -17,9 +17,11 @@
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to track your position during jobs.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to track your position during jobs.",
         "UIBackgroundModes": [
+          "location",
           "location"
         ]
-      }
+      },
+      "bundleIdentifier": "com.techtracker.mobile"
     },
     "android": {
       "package": "com.techtracker.mobile",

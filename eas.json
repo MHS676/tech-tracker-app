@@ -5,10 +5,12 @@
         "buildType": "apk",
         "withoutCredentials": false,
         "env": {
-          "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
-          "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
+          "EXPO_PUBLIC_API_URL": "http://192.168.0.35:3000/api",
+          "EXPO_PUBLIC_SOCKET_URL": "http://192.168.0.35:3000",
+          "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
         },
-        "distribution": "internal"
+        "distribution": "internal",
+        "node": "22.12.0"
       }
     },
     "production": {
@@ -17,7 +19,8 @@
         "env": {
           "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
           "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
-        }
+        },
+        "node": "22.12.0"
       }
     }
   },
