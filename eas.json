@@ -11,11 +11,28 @@
         },
         "distribution": "internal",
         "node": "22.12.0"
+      },
+      "ios": {
+        "simulator": true,
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
+          "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com",
+          "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+        },
+        "distribution": "internal",
+        "node": "22.12.0"
       }
     },
     "production": {
       "android": {
         "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
+          "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
+        },
+        "node": "22.12.0"
+      },
+      "ios": {
         "env": {
           "EXPO_PUBLIC_API_URL": "https://tech-tracker-backend.onrender.com/api",
           "EXPO_PUBLIC_SOCKET_URL": "https://tech-tracker-backend.onrender.com"
