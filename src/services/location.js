@@ -1,11 +1,50 @@
 import { io } from 'socket.io-client';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Use your computer's local IP for physical devices
 // Change this to 10.0.2.2 for Android Emulator, localhost for iOS Simulator
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://192.168.1.69:3000';
 const LOCATION_TASK_NAME = 'background-location-task';
+
+// Define background task BEFORE the class
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+  if (error) {
+    console.error('Background location error:', error);
+    return;
+  }
+  if (data) {
+    const { locations } = data;
+    const location = locations[0];
+    
+    if (location) {
+      try {
+        // Get stored tech data
+        const techData = await AsyncStorage.getItem('backgroundLocationData');
+        if (techData) {
+          const { techId, socketUrl, jobId } = JSON.parse(techData);
+          
+          // Send location to server via HTTP (socket won't work in background)
+          const apiUrl = socketUrl.replace(/:\d+$/, ':3000') + '/api';
+          await fetch(`${apiUrl}/technician/${techId}/background-location`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lat: location.coords.latitude,
+              lng: location.coords.longitude,
+              jobId: jobId,
+            }),
+          });
+          
+          console.log('📍 Background location sent:', location.coords.latitude, location.coords.longitude);
+        }
+      } catch (err) {
+        console.error('Failed to send background location:', err);
+      }
+    }
+  }
+});
 
 class LocationService {
   constructor() {
@@ -333,15 +372,57 @@ class LocationService {
   async startTracking(jobId) {
     if (this.isTracking) return;
 
-    await this.requestPermissions();
+    const { status } = await this.requestPermissions();
+    
+    // Request background permissions
+    const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+    const hasBackgroundPermission = backgroundStatus === 'granted';
 
     this.isTracking = true;
     this.currentJobId = jobId;
 
-    // Use foreground location tracking
+    if (hasBackgroundPermission) {
+      // Use background location task for better reliability
+      try {
+        // Store tech data for background task
+        await AsyncStorage.setItem('backgroundLocationData', JSON.stringify({
+          techId: this.techId,
+          socketUrl: SOCKET_URL,
+          jobId: jobId,
+        }));
+
+        // Start background location updates
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 10000, // Update every 10 seconds
+          distanceInterval: 20, // Or every 20 meters
+          foregroundService: {
+            notificationTitle: 'Tech Tracker Active',
+            notificationBody: 'Tracking your location for job',
+            notificationColor: '#3B82F6',
+          },
+          pausesUpdatesAutomatically: false,
+          showsBackgroundLocationIndicator: true,
+        });
+        
+        console.log('✅ Background location tracking started');
+      } catch (error) {
+        console.error('Failed to start background tracking, falling back to foreground:', error);
+        // Fallback to foreground tracking
+        await this._startForegroundTracking(jobId);
+      }
+    } else {
+      // No background permission, use foreground only
+      console.log('No background permission, using foreground tracking only');
+      await this._startForegroundTracking(jobId);
+    }
+  }
+
+  // Foreground tracking fallback
+  async _startForegroundTracking(jobId) {
     this.locationSubscription = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
         timeInterval: 5000, // Update every 5 seconds
         distanceInterval: 10, // Or every 10 meters
       },
@@ -349,16 +430,29 @@ class LocationService {
         this.sendLocation(location.coords.latitude, location.coords.longitude);
       }
     );
-
-    console.log('Location tracking started');
+    console.log('✅ Foreground location tracking started');
   }
 
   // Stop location tracking
   async stopTracking() {
+    // Stop background task if running
+    const isTaskDefined = await TaskManager.isTaskDefinedAsync(LOCATION_TASK_NAME);
+    if (isTaskDefined) {
+      const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (isTaskRegistered) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+        await AsyncStorage.removeItem('backgroundLocationData');
+        console.log('Background tracking stopped');
+      }
+    }
+
+    // Stop foreground tracking if running
     if (this.locationSubscription) {
       this.locationSubscription.remove();
       this.locationSubscription = null;
+      console.log('Foreground tracking stopped');
     }
+
     this.isTracking = false;
     console.log('Location tracking stopped');
   }
@@ -429,17 +523,64 @@ class LocationService {
         // Start continuous tracking without job
         console.log('Starting continuous location tracking...');
         this.isTracking = true;
-        this.locationSubscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 10000, // Update every 10 seconds
-            distanceInterval: 20, // Or every 20 meters
-          },
-          (loc) => {
-            console.log('📍 Location update:', loc.coords.latitude, loc.coords.longitude);
-            this.sendLocation(loc.coords.latitude, loc.coords.longitude);
+        
+        // Check for background permission
+        const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+        const hasBackgroundPermission = backgroundStatus === 'granted';
+        
+        if (hasBackgroundPermission) {
+          try {
+            // Store tech data for background task
+            await AsyncStorage.setItem('backgroundLocationData', JSON.stringify({
+              techId: this.techId,
+              socketUrl: SOCKET_URL,
+              jobId: null,
+            }));
+
+            // Start background location updates
+            await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 10000, // Update every 10 seconds  
+              distanceInterval: 20, // Or every 20 meters
+              foregroundService: {
+                notificationTitle: 'Tech Tracker GPS Active',
+                notificationBody: 'Your location is being tracked',
+                notificationColor: '#3B82F6',
+              },
+              pausesUpdatesAutomatically: false,
+              showsBackgroundLocationIndicator: true,
+            });
+            
+            console.log('✅ Background location tracking started');
+          } catch (error) {
+            console.error('Failed to start background tracking, using foreground:', error);
+            // Fallback to foreground
+            this.locationSubscription = await Location.watchPositionAsync(
+              {
+                accuracy: Location.Accuracy.Balanced,
+                timeInterval: 10000,
+                distanceInterval: 20,
+              },
+              (loc) => {
+                console.log('📍 Location update:', loc.coords.latitude, loc.coords.longitude);
+                this.sendLocation(loc.coords.latitude, loc.coords.longitude);
+              }
+            );
           }
-        );
+        } else {
+          // No background permission, use foreground only
+          this.locationSubscription = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 10000,
+              distanceInterval: 20,
+            },
+            (loc) => {
+              console.log('📍 Location update:', loc.coords.latitude, loc.coords.longitude);
+              this.sendLocation(loc.coords.latitude, loc.coords.longitude);
+            }
+          );
+        }
         console.log('✅ Location tracking started');
       } else {
         // Stop tracking

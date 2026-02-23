@@ -15,10 +15,10 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to track your position during jobs.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to track your position during jobs.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs continuous access to your location to track your position even when the app is in the background or closed.",
         "UIBackgroundModes": [
           "location",
-          "location"
+          "fetch"
         ]
       },
       "bundleIdentifier": "com.techtracker.mobile"
@@ -33,7 +33,9 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
